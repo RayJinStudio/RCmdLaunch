@@ -142,7 +142,7 @@ ApplicationWindow {
             spacing: 16
             
             Label {
-                text: "命令列表 (共 " + commandListModel.count + " 项)"
+                text: "命令列表"
                 font.pointSize: 16
                 font.weight: Font.Medium
                 color: Material.foreground
@@ -187,15 +187,6 @@ ApplicationWindow {
                         Material.elevation: 2
                         
                         property var cmd: model.cmd
-                        
-                        // 调试信息
-                        Component.onCompleted: {
-                            console.log("Delegate created with cmd:", cmd)
-                            if (cmd) {
-                                console.log("Cmd name:", cmd.name)
-                                console.log("Cmd command:", cmd.command)
-                            }
-                        }
 
                         RowLayout {
                             anchors.fill: parent
@@ -226,8 +217,8 @@ ApplicationWindow {
                                 Layout.preferredWidth: 12
                                 Layout.preferredHeight: 12
                                 radius: 6
-                                color: cmd.isRunning ? Material.Green : Material.Grey
-                                
+                                color: cmd.isRunning ? Material.color(Material.Green) : Material.color(Material.Red)
+                                opacity: cmd.isRunning ? 1.0: 1.0
                                 SequentialAnimation on opacity {
                                     running: cmd.isRunning
                                     loops: Animation.Infinite
@@ -235,11 +226,18 @@ ApplicationWindow {
                                     NumberAnimation { to: 1.0; duration: 800 }
                                 }
                             }
-
-                            // 操作按钮
                             RowLayout {
                                 spacing: 8
-                                
+
+                                // Loading指示器 - 在停止时显示
+                                BusyIndicator {
+                                    id: loadingIndicator
+                                    Layout.preferredWidth: 24
+                                    Layout.preferredHeight: 24
+                                    visible: cmd.isRunning && cmd.isStopping
+                                    running: visible
+                                    Material.accent: Material.primary
+                                }
                                 Button {
                                     text: cmd.isRunning ? "停止" : "启动"
                                     Material.background: cmd.isRunning ? Material.Red : Material.Green
@@ -250,7 +248,8 @@ ApplicationWindow {
                                         else
                                             commandManager.startCommand(cmd.name)
                                     }
-                                }                                Button {
+                                }
+                                Button {
                                     text: "详情"
                                     Material.background: Material.primary
                                     Material.foreground: "white"
@@ -259,8 +258,10 @@ ApplicationWindow {
                             }
                         }
                     }
-                }            }
-        }    }
+                }            
+            }
+        }    
+    }
 
     // 创建输出窗口组件实例
     Component {

@@ -1,6 +1,7 @@
 #include "CommandManager.h"
 #include <QDebug>
 #include <QVariant>
+#include <QTimer>
 
 CommandManager::CommandManager(QObject* parent) : QObject(parent) {}
 
@@ -32,7 +33,7 @@ void CommandManager::startCommand(const QString& name) {
         return;
     }    QProcess* process = new QProcess(this);
     entry->process = process;
-    entry->isStopping = false;  // 确保重置停止标志
+    entry->m_isStopping = false;  // 确保重置停止标志
 
     QObject::connect(process, &QProcess::readyReadStandardOutput, [this, entry]() {
         QByteArray out = entry->process->readAllStandardOutput();
@@ -54,18 +55,23 @@ void CommandManager::startCommand(const QString& name) {
         emit outputUpdated(entry->name());
     });    QObject::connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                      [this, entry](int exitCode, QProcess::ExitStatus exitStatus) {
-                         entry->isStopping = false;  // 重置停止标志
+                         // 停止并清理定时器
+                         if (entry->stopTimer) {
+                             entry->stopTimer->stop();
+                         }
+                           entry->m_isStopping = false;  // 重置停止标志
                          
                          // 只有在非主动停止且异常退出时才显示警告
-                         if (exitStatus == QProcess::CrashExit && !entry->isStopping) {
+                         if (exitStatus == QProcess::CrashExit && !entry->m_isStopping) {
                              qWarning() << "Process crashed with exit code:" << exitCode;
                          }
                          
                          emit commandStatusChanged(entry->name(), false);
                          emit entry->runningChanged();
-                     });QObject::connect(process, &QProcess::errorOccurred, [this, entry](QProcess::ProcessError err) {
+                         emit entry->stoppingChanged();
+                     });    QObject::connect(process, &QProcess::errorOccurred, [this, entry](QProcess::ProcessError err) {
         // 只有在非主动停止的情况下才输出错误
-        if (!entry->isStopping) {
+        if (!entry->m_isStopping) {
             qWarning() << "Process error:" << err;
         }
         emit commandStatusChanged(entry->name(), false);
@@ -92,17 +98,29 @@ void CommandManager::stopCommand(const QString& name) {
 
     CommandEntry* entry = m_commandMap.value(name);
     if (entry->process && entry->process->state() != QProcess::NotRunning) {
-        entry->isStopping = true;  // 标记为主动停止
+        entry->m_isStopping = true;  // 标记为主动停止
+        emit entry->stoppingChanged();  // 发射信号通知UI更新
+        
+        // 创建定时器用于超时控制
+        if (!entry->stopTimer) {
+            entry->stopTimer = new QTimer(this);
+            entry->stopTimer->setSingleShot(true);
+        }
+        
+        // 连接进程结束信号，确保在进程正常结束时清理
+        QObject::connect(entry->process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                         entry->stopTimer, &QTimer::stop, Qt::UniqueConnection);
+        
+        // 设置3秒超时，如果进程还没结束则强制杀死
+        QObject::connect(entry->stopTimer, &QTimer::timeout, [this, entry]() {
+            forceKillProcess(entry);
+        });
         
         // 先尝试温和的终止
         entry->process->terminate();
-        if (!entry->process->waitForFinished(3000)) {
-            // 如果3秒后还没结束，强制杀死
-            entry->process->kill();
-            entry->process->waitForFinished(1000);
-        }
+        entry->stopTimer->start(3000);  // 3秒超时
         
-        entry->isStopping = false;  // 重置标记
+        // 立即更新UI状态，不等待进程实际结束
         entry->clearOutput();
         emit commandStatusChanged(name, false);
         emit entry->runningChanged();
@@ -124,4 +142,24 @@ void CommandManager::clearOutput(const QString& name) {
     if (!m_commandMap.contains(name)) return;
     m_commandMap[name]->clearOutput();
     emit outputUpdated(name);
+}
+
+void CommandManager::forceKillProcess(CommandEntry* entry) {
+    if (entry->process && entry->process->state() != QProcess::NotRunning) {
+        qDebug() << "Force killing process for command:" << entry->name();
+        entry->process->kill();
+        
+        // 创建一个单次定时器，在1秒后完成清理工作
+        QTimer* killTimer = new QTimer(this);
+        killTimer->setSingleShot(true);
+        QObject::connect(killTimer, &QTimer::timeout, [this, entry, killTimer]() {
+            entry->m_isStopping = false;  // 重置标记
+            emit entry->stoppingChanged();  // 发射信号通知UI更新
+            killTimer->deleteLater();
+        });
+        killTimer->start(1000);
+    } else {
+        entry->m_isStopping = false;  // 重置标记
+        emit entry->stoppingChanged();  // 发射信号通知UI更新
+    }
 }

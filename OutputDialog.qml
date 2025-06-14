@@ -10,6 +10,24 @@ ApplicationWindow {
     
     // 组件初始化状态
     property bool componentReady: false
+
+    width: 800
+    height: 600
+    title: currentCommand ? "控制台输出 - " + currentCommand : "控制台输出"
+    visible: false
+
+    // 设置窗口位置，避免多个窗口重叠
+    property int windowIndex: 0
+    x: 100 + (windowIndex * 50)
+    y: 100 + (windowIndex * 50)
+
+    // Material Design 3 样式
+    Material.theme: Material.Light
+    Material.primary: Material.Blue
+    Material.accent: Material.LightBlue
+
+    // 设置窗口背景色
+    color: Material.backgroundColor
     
     Component.onCompleted: {
         componentReady = true
@@ -25,7 +43,9 @@ ApplicationWindow {
             outputWindow.raise()
             outputWindow.requestActivate()
         }
-    }    function updateOutput() {
+    }    
+    
+    function updateOutput() {
         if (currentCommand && commandManager && componentReady) {
             var newText = commandManager.getOutput(currentCommand)
             if (textArea) {
@@ -48,23 +68,7 @@ ApplicationWindow {
             }
         }
     }
-    width: 800
-    height: 600
-    title: currentCommand ? "控制台输出 - " + currentCommand : "控制台输出"
-    visible: false
-
-    // 设置窗口位置，避免多个窗口重叠
-    property int windowIndex: 0
-    x: 100 + (windowIndex * 50)
-    y: 100 + (windowIndex * 50)
-
-    // Material Design 3 样式
-    Material.theme: Material.Light
-    Material.primary: Material.Blue
-    Material.accent: Material.LightBlue
-
-    // 设置窗口背景色
-    color: Material.backgroundColor
+    
     // 关闭窗口时隐藏而不是销毁
     onClosing: function(close) {
         close.accepted = false
@@ -72,6 +76,7 @@ ApplicationWindow {
             outputWindow.hide()
         }
     }
+
     // 工具栏 - 使用anchor定位固定在顶部
     Pane {
         id: toolbarPane
@@ -165,10 +170,7 @@ ApplicationWindow {
                 selectedTextColor: "#ffffff"
 
                 // 添加一些内边距
-                leftPadding: 12
-                rightPadding: 12
-                topPadding: 12
-                bottomPadding: 12
+                padding: 12
             }
         }
     }
