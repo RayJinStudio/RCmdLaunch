@@ -94,43 +94,18 @@ void CommandManager::stopCommand(const QString& name) {
     if (entry->process && entry->process->state() != QProcess::NotRunning) {
         entry->isStopping = true;  // 标记为主动停止
         
-        // 创建一个定时器来处理强制终止
-        QTimer* killTimer = new QTimer(this);
-        killTimer->setSingleShot(true);
-        killTimer->setInterval(3000); // 3秒后强制杀死
-        
-        // 连接进程结束信号
-        connect(entry->process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                [this, name, killTimer](int exitCode, QProcess::ExitStatus exitStatus) {
-                    Q_UNUSED(exitCode)
-                    Q_UNUSED(exitStatus)
-                    
-                    killTimer->stop();
-                    killTimer->deleteLater();
-                    
-                    if (m_commandMap.contains(name)) {
-                        CommandEntry* entry = m_commandMap.value(name);
-                        entry->isStopping = false;  // 重置标记
-                        entry->clearOutput();
-                        emit commandStatusChanged(name, false);
-                        emit entry->runningChanged();
-                    }
-                });
-        
-        // 连接定时器超时信号 - 强制杀死进程
-        connect(killTimer, &QTimer::timeout, [this, name, killTimer]() {
-            if (m_commandMap.contains(name)) {
-                CommandEntry* entry = m_commandMap.value(name);
-                if (entry->process && entry->process->state() != QProcess::NotRunning) {
-                    entry->process->kill();
-                }
-            }
-            killTimer->deleteLater();
-        });
-        
-        // 启动定时器并尝试温和终止
-        killTimer->start();
+        // 先尝试温和的终止
         entry->process->terminate();
+        if (!entry->process->waitForFinished(3000)) {
+            // 如果3秒后还没结束，强制杀死
+            entry->process->kill();
+            entry->process->waitForFinished(1000);
+        }
+        
+        entry->isStopping = false;  // 重置标记
+        entry->clearOutput();
+        emit commandStatusChanged(name, false);
+        emit entry->runningChanged();
     }
 }
 
