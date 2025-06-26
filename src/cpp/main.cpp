@@ -8,6 +8,9 @@
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    
+    // 设置应用图标
+    app.setWindowIcon(QIcon(":/icon.ico"));
 
     // 设置 Material Design 样式
     QQuickStyle::setStyle("Material");

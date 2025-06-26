@@ -7,6 +7,9 @@
 #include <QPointer>
 #include <QVariant>
 #include <QTimer>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
 
 class CommandEntry : public QObject {
     Q_OBJECT
@@ -74,6 +77,12 @@ public:
     Q_INVOKABLE QString getOutput(const QString& name);
     Q_INVOKABLE bool isRunning(const QString& name);
     Q_INVOKABLE void clearOutput(const QString& name);
+    Q_INVOKABLE void removeCommand(const QString& name);
+    Q_INVOKABLE void saveCommand(const QString& name, const QString& command);
+    Q_INVOKABLE void loadSavedCommands();
+    Q_INVOKABLE bool editCommand(const QString& oldName, const QString& newName, const QString& newCommand);
+    Q_INVOKABLE bool isCommandNameUnique(const QString& name, const QString& excludeName = "");
+    Q_INVOKABLE QString getCommandContent(const QString& name);
 
 signals:
     void commandListChanged();
@@ -83,9 +92,12 @@ signals:
 private:
     QMap<QString, CommandEntry*> m_commandMap;
     QList<QObject*> m_commandList;
+    QSqlDatabase m_database;
 
     void handleProcessOutput(CommandEntry* entry);
     void handleProcessError(CommandEntry* entry, QProcess::ProcessError error);
     void handleProcessFinished(CommandEntry* entry, int exitCode, QProcess::ExitStatus exitStatus);
     void forceKillProcess(CommandEntry* entry);  // 强制杀死进程的辅助方法
+    bool initializeDatabase();
+    bool createCommandFromDatabase(const QString& name, const QString& command);
 };

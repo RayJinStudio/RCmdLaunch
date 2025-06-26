@@ -13,9 +13,10 @@ ApplicationWindow {
     title: "命令启动器"
     
     // Material Design 3 配置
-    Material.theme: Material.Light
-    Material.primary: Material.Blue
-    Material.accent: Material.LightBlue
+    Material.theme: Material.System
+    Material.containerStyle: Material.Outlined
+    // Material.primary: Material.Purple
+    // Material.accent: Material.Purple
     
     // 设置窗口背景色
     color: Material.backgroundColor
@@ -46,13 +47,13 @@ ApplicationWindow {
         anchors.right: parent.right
         anchors.margins: 24
         height: 100
-        Material.elevation: 1
+        Material.background: "white"
         
         ColumnLayout {
             anchors.fill: parent
             spacing: 8
               Label {
-                text: "命令启动器"
+                text: qsTr("命令启动器")
                 font.pointSize: 24
                 font.weight: Font.Medium
                 color: Material.primary
@@ -80,12 +81,12 @@ ApplicationWindow {
         anchors.margins: 24
         anchors.topMargin: 12
         height: 120
-        Material.elevation: 1
+        //Material.elevation: 1
         
         ColumnLayout {
             anchors.fill: parent
             spacing: 16
-              Label {
+            Label {
                 text: "添加新命令"
                 font.pointSize: 16
                 font.weight: Font.Medium
@@ -100,7 +101,6 @@ ApplicationWindow {
                     placeholderText: "命令名称"
                     Layout.fillWidth: true
                     Layout.preferredWidth: 200
-                    Material.containerStyle: Material.Outlined
                 }
                 
                 TextField {
@@ -108,7 +108,7 @@ ApplicationWindow {
                     placeholderText: "启动命令"
                     Layout.fillWidth: true
                     Layout.preferredWidth: 400
-                    Material.containerStyle: Material.Outlined
+                    
                 }
                 
                 Button {
@@ -136,7 +136,7 @@ ApplicationWindow {
         anchors.bottom: parent.bottom
         anchors.margins: 24
         anchors.topMargin: 12
-        Material.elevation: 1          
+        //Material.elevation: 1          
         ColumnLayout {
             anchors.fill: parent
             spacing: 16
@@ -248,12 +248,52 @@ ApplicationWindow {
                                         else
                                             commandManager.startCommand(cmd.name)
                                     }
-                                }
+                                }                            
+                                
                                 Button {
                                     text: "详情"
                                     Material.background: Material.primary
                                     Material.foreground: "white"
                                     onClicked: mainWindow.getOutputDialog(cmd.name).showOutput(cmd.name)
+                                }
+                                  // 三个点的菜单按钮
+                                Button {
+                                    text: "⋮"
+                                    font.pointSize: 16
+                                    font.bold: true
+                                    Material.foreground: "white"
+                                    Layout.preferredWidth: 36
+                                    Layout.preferredHeight: 36
+                                    property string cmdName: cmd.name
+                                    
+                                    onClicked: {
+                                        commandMenu.cmdName = cmdName
+                                        commandMenu.popup()
+                                    }
+                                    
+                                    Menu {
+                                        id: commandMenu
+                                        property string cmdName: ""
+                                        
+                                        MenuItem {
+                                            text: "编辑"
+                                            icon.source: "/edit.png"
+                                            onTriggered: {
+                                                var cmdName = commandMenu.cmdName
+                                                var cmdContent = commandManager.getCommandContent(cmdName)
+                                                editDialog.openEditDialog(cmdName, cmdContent)
+                                            }
+                                        }
+                                        
+                                        MenuItem {
+                                            text: "删除"
+                                            icon.source: "/delete.png"
+                                            onTriggered: {
+                                                deleteConfirmDialog.commandToDelete = commandMenu.cmdName
+                                                deleteConfirmDialog.open()
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -269,7 +309,13 @@ ApplicationWindow {
         OutputDialog {
         }
     }
-      // 存储每个命令的OutputDialog实例
+    
+    // 编辑对话框
+    EditDialog {
+        id: editDialog
+    }
+
+    // 存储每个命令的OutputDialog实例
     property var outputDialogs: ({})
     property int nextWindowIndex: 0
     
@@ -292,10 +338,35 @@ ApplicationWindow {
             }
         }
         outputDialogs = {}
-    }
-    
-    // 应用退出时清理
+    }    // 应用退出时清理
     Component.onDestruction: {
         cleanupOutputDialogs()
+    }
+    
+    // 删除确认对话框
+    Dialog {
+        id: deleteConfirmDialog
+        title: "确认删除"
+        anchors.centerIn: parent
+        modal: true
+        standardButtons: Dialog.Yes | Dialog.No
+        
+        property string commandToDelete: ""
+        
+        Label {
+            text: "确定要删除命令 \"" + deleteConfirmDialog.commandToDelete + "\" 吗？\n此操作不可撤销。"
+            wrapMode: Text.WordWrap
+        }
+        
+        onAccepted: {
+            if (commandToDelete) {
+                commandManager.removeCommand(commandToDelete)
+                commandToDelete = ""
+            }
+        }
+        
+        onRejected: {
+            commandToDelete = ""
+        }
     }
 }

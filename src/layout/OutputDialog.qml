@@ -145,10 +145,13 @@ ApplicationWindow {
         anchors.topMargin: 8
         Material.elevation: 2
         padding: 0
-
+        background: Rectangle {
+            color: "#1f1f1f"
+            radius: 4
+        }
         ScrollView {
             anchors.fill: parent
-
+        
             TextArea {
                 id: textArea
                 readOnly: true
@@ -156,21 +159,15 @@ ApplicationWindow {
                 selectByMouse: true
                 font.family: "Consolas, 'Courier New', monospace"
                 font.pixelSize: 13
-
                 // Material Design 3 暗色主题用于终端
                 color: "#e8eaed"
-                background: Rectangle {
-                    color: "#1f1f1f"
-                    border.color: Material.primary
-                    border.width: 1
-                    radius: 4
-                }
+                
 
                 selectionColor: Material.accent
                 selectedTextColor: "#ffffff"
 
                 // 添加一些内边距
-                padding: 12
+                padding: 15
             }
         }
     }
