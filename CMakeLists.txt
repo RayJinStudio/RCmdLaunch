@@ -15,7 +15,7 @@ file(GLOB_RECURSE CPP_FILE_LIST
 )
 
 qt_add_executable(appRCmdLaunch
-    ${CPP_FILE_LIST} ./src/res/resources.qrc
+    ${CPP_FILE_LIST}
 )
 
 # 添加 Windows 图标
